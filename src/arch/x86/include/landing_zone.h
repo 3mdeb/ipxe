@@ -14,9 +14,9 @@ FILE_LICENCE ( GPL2_OR_LATER_OR_UBDL );
 /** Minimum alignment for Landing Zone
  */
 #define LZ_ALIGN ( 64 * 1024 )
-#define LZ_SIZE ( 64 * 1024 )
+#define SLB_SIZE ( 64 * 1024 )
 
-void landing_zone_set_bzimage ( struct image *lz, userptr_t zeropage );
+int lz_set_bzimage ( struct image *image, userptr_t zeropage, physaddr_t tgt );
 
 #endif /* _LANDING_ZONE_H */
 

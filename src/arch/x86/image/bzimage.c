@@ -616,15 +616,18 @@ static int bzimage_exec ( struct image *image ) {
 	 * of available memory. It can be safely changed here.
 	 */
 	if ( ( lz = find_image ( "landing_zone" ) ) != NULL ) {
+		unregister_image ( image_get ( lz ) );
+
 		/* Kernel may be compressed. Should it be considered as an iPXE bug? */
 		bzimg.pm_sz *= 3;
+
 		/* Kernel is loaded either to BZI_LOAD_HIGH_ADDR or BZI_LOAD_LOW_ADDR.
 		 * It is already at least 64K-aligned.
 		 */
 		bzimg.pm_sz = ( bzimg.pm_sz + LZ_ALIGN - 1 ) & ~( LZ_ALIGN - 1 );
-		bzimg.pm_sz += LZ_SIZE;
 
-		unregister_image ( image_get ( lz ) );
+		lz_set_bzimage ( lz, bzimg.rm_kernel, bzimg.pm_kernel + bzimg.pm_sz );
+		bzimg.pm_sz += SLB_SIZE;
 	}
 
 	/* Prepare for exiting.  Must do this before loading initrds,
@@ -641,12 +644,6 @@ static int bzimage_exec ( struct image *image ) {
 	if ( lz != NULL ) {
 		register_image ( lz );
 		image_put ( lz );
-		bzimg.pm_sz -= LZ_SIZE;
-
-		landing_zone_set_bzimage ( lz, bzimg.rm_kernel );
-
-		/* TODO: find a better way... */
-		lz->flags |= bzimg.pm_kernel + bzimg.pm_sz;
 
 		return image_replace ( lz );
 	}

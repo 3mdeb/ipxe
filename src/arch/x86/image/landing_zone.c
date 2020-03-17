@@ -25,25 +25,37 @@ const unsigned char
 lz_header_uuid[16] = { 0x78, 0xf1, 0x26, 0x8e, 0x04, 0x92, 0x11, 0xe9,
                        0x83, 0x2a, 0xc8, 0x5b, 0x76, 0xc4, 0xcc, 0x02 };
 
+static physaddr_t target;
+
 /**
  * Update LZ header
  *
  * @v image		LZ file
  * @v zeropage	Address of zero page
  */
-void landing_zone_set_bzimage ( struct image *image, userptr_t zeropage ) {
-	struct sl_header sl_hdr;
-	copy_from_user ( &sl_hdr, image->data, 0, sizeof ( sl_hdr ) );
-	struct lz_header hdr;
-	copy_from_user ( &hdr, image->data, sl_hdr.lz_length, sizeof ( hdr ) );
+int lz_set_bzimage ( struct image *image, userptr_t zeropage, userptr_t tgt ) {
+	target = user_to_phys ( tgt, 0 );
+	int rc;
 
-	hdr.zero_page_addr = user_to_phys ( zeropage, 0 );
+	DBGC ( image, "LZ %p is being copied to 0x%lx (0x%lx user)\n",
+	       image, target, tgt );
 
-	DBGC ( image, "LZ %p writing zeropage address: 0x%lx\n",
-			   image, user_to_phys ( zeropage, 0 ) );
+	if ( ( rc = prep_segment ( tgt, image->len, SLB_SIZE ) ) != 0 ) {
+		DBGC ( image, "LZ %p could not prepare segment: %s\n",
+		       image, strerror ( rc ) );
+		return rc;
+	}
 
-	/* Write out header structure */
-	copy_to_user ( image->data, sl_hdr.lz_length, &hdr, sizeof ( hdr ) );
+	memcpy_user ( tgt, 0, image->data, 0, image->len );
+
+	struct sl_header *sl_hdr = ( struct sl_header *) tgt;
+	struct lz_header *hdr = ( struct lz_header *) ( tgt + sl_hdr->lz_length );
+
+	DBGC ( image, "LZ %p writing zeropage address: 0x%lx\n", image,
+	       user_to_phys ( zeropage, 0 ) );
+
+	hdr->zero_page_addr = user_to_phys ( zeropage, 0 );
+	return 0;
 }
 
 /**
@@ -53,8 +65,11 @@ void landing_zone_set_bzimage ( struct image *image, userptr_t zeropage ) {
  * @ret rc		Return status code
  */
 static int lz_exec ( struct image *image ) {
-	int rc;
-	physaddr_t target = image->flags & ~( LZ_ALIGN - 1 );
+	if ( ! target ) {
+		DBGC ( image, "LZ %p: no target address (unsupported kernel type?)\n",
+		       image );
+		return -ENOSYS;
+	};
 
 	/* TODO: remove hardcoded values */
 	/* Set APs in wait-for-SIPI state */
@@ -67,32 +82,18 @@ static int lz_exec ( struct image *image ) {
 	*((volatile uint8_t *)phys_to_user(0xFED43000ULL)) = 0x20;
 	*((volatile uint8_t *)phys_to_user(0xFED44000ULL)) = 0x20;
 
-	/* TODO: initrds can overwrite LZ while it is temporarily unregistered.
-	 * This and memcpy below should be done before that.
-	 */
-	if ( ( rc = prep_segment ( target, image->len, LZ_SIZE ) ) != 0 ) {
-		DBGC ( image, "LZ %p could not prepare segment: %s\n",
-			   image, strerror ( rc ) );
-		return rc;
-	}
-
-	memcpy_user ( phys_to_user ( target ), 0, image->data, 0, image->len );
-
-	DBGC ( image, "LZ %p performing SKINIT with eax=0x%lx now\n", image,
+	DBGC ( image, "LZ %p performing SKINIT with eax=0x%lx now\n.\n.\n.", image,
 	       target );
 
-	/* Fill UART buffer with padding, SKINIT may happen before it empties */
-	DBGC ( image, "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" );
-
 	__asm__ __volatile__ ( "skinit"
-			       : : "a" ( target ) );
+			       : : "a" ( target ) : "memory" );
 
 	/* There is no way for the image to return, since we provide
 	 * no return address.
 	 */
 	assert ( 0 );
 
-	return -12; //-ECANCELED; /* -EIMPOSSIBLE */
+	return -ECANCELED; /* -EIMPOSSIBLE */
 }
 
 /**
@@ -103,18 +104,25 @@ static int lz_exec ( struct image *image ) {
  */
 static int lz_probe ( struct image *image ) {
 	int rc;
-
 	struct sl_header sl_hdr;
-	copy_from_user ( &sl_hdr, image->data, 0, sizeof ( sl_hdr ) );
 	struct lz_header hdr;
+
+	if ( image->len > SLB_SIZE ) {
+		DBGC ( image, "LZ %p too big for Landing Zone\n",
+		       image );
+		return -ENOEXEC;
+	}
+	copy_from_user ( &sl_hdr, image->data, 0, sizeof ( sl_hdr ) );
 	copy_from_user ( &hdr, image->data, sl_hdr.lz_length, sizeof ( hdr ) );
 
 	rc = memcmp ( hdr.uuid, lz_header_uuid, sizeof ( lz_header_uuid ) );
 
-	if ( rc == 0 )
+	if ( rc == 0 ) {
 		image_set_name ( image, "landing_zone" );
+		return rc;
+	}
 
-	return rc;
+	return -ENOEXEC;
 }
 
 /** Landing Zone image type */
