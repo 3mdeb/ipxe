@@ -425,8 +425,8 @@ static size_t multiboot2_add_modules ( struct image *image, size_t offset ) {
 		module = (struct multiboot_tag_module *)&mb2_bib.bib[offset];
 		module->type = MULTIBOOT_TAG_TYPE_MODULE;
 		module->size = sizeof(*module);
-		module->mod_start = memory;
-		module->mod_end = ( memory + module_image->len );
+		module->mod_start = user_to_phys ( memory, 0 );
+		module->mod_end = user_to_phys ( memory, module_image->len );
 
 		buf = module->cmdline;
 		remaining = MB_MAX_BOOTINFO_SIZE - offset - sizeof(*module);
