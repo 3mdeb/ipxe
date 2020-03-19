@@ -602,6 +602,9 @@ static int multiboot2_exec ( struct image *image ) {
 	shutdown_boot();
 
 	if ( lz != NULL ) {
+		Elf_Ehdr *Ehdr = (Elf_Ehdr *) image->data;
+		Elf_Phdr *Phdr = (Elf_Phdr *) ( image->data + Ehdr->e_phoff );
+		*reserved = Phdr->p_filesz;
 		register_image ( lz );
 		image_put ( lz );
 
