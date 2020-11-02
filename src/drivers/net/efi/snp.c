@@ -78,6 +78,7 @@ static int nii_supported ( EFI_HANDLE device ) {
 	EFI_BOOT_SERVICES *bs = efi_systab->BootServices;
 	EFI_STATUS efirc;
 
+	return -1;
 	/* Check that this is not a device we are providing ourselves */
 	if ( find_snpdev ( device ) != NULL ) {
 		DBGCP ( device, "NII %s is provided by this binary\n",

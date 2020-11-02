@@ -36,11 +36,11 @@ FILE_LICENCE ( GPL2_OR_LATER );
 
 /** @file
  *
- * SNP NIC driver
+ *  NIC driver
  *
  */
 
-/** An SNP NIC */
+/** An  NIC */
 struct snp_nic {
 	/** EFI device */
 	struct efi_device *efidev;
@@ -268,7 +268,7 @@ static void snpnet_poll_rx ( struct net_device *netdev ) {
 			netdev_rx_err ( netdev, NULL, rc );
 			break;
 		}
-
+		DBGC ( snp, "SNP %s received %llx bytes\n", netdev->name, len );
 		/* Hand off to network stack */
 		iob_put ( snp->rxbuf, len );
 		netdev_rx ( netdev, snp->rxbuf );
@@ -547,6 +547,9 @@ int snpnet_start ( struct efi_device *efidev ) {
 		goto err_register_netdev;
 	DBGC ( device, "SNP %s registered as %s\n",
 	       efi_handle_name ( device ), netdev->name );
+
+	DBGC ( device, "SNP %s , max packet size %x, media header size %x\n",
+	       efi_handle_name ( device ), snp->snp->Mode->MaxPacketSize, snp->snp->Mode->MediaHeaderSize );
 
 	/* Set initial link state */
 	if ( snp->snp->Mode->MediaPresentSupported ) {

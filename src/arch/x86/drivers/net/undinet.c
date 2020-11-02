@@ -461,6 +461,9 @@ static int undinet_transmit ( struct net_device *netdev,
 	size_t len;
 	int rc;
 
+	DBGC ( undinic, "UNDINIC %p transmitting %lx bytes \n", undinic,
+		 iob_len ( iobuf ) );
+
 	/* Technically, we ought to make sure that the previous
 	 * transmission has completed before we re-use the buffer.
 	 * However, many PXE stacks (including at least some Intel PXE

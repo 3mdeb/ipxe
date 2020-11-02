@@ -1,0 +1,29 @@
+#!ipxe
+#
+:MENU
+menu
+item --gap -- ---------------- iPXE boot menu ----------------
+item deb-netboot-4.14.y              Debian stable netboot 4.14.y
+item ubuntu-lts-netinst              Ubuntu LTS netinst
+item shell          ipxe shell
+choose --default boot --timeout 3000 target && goto ${target}
+
+:ubuntu-lts-netinst
+dhcp net0
+echo Loading Linux
+kernel http://archive.ubuntu.com/ubuntu/dists/focal-updates/main/installer-amd64/current/legacy-images/netboot/ubuntu-installer/amd64/linux initrd=initrd.gz --- console=ttyS0,115200 earlyprintk=serial,ttyS0,115200
+echo Loading initrd
+initrd http://archive.ubuntu.com/ubuntu/dists/focal-updates/main/installer-amd64/current/legacy-images/netboot/ubuntu-installer/amd64/initrd.gz
+echo Ready to boot
+boot
+goto MENU
+
+:deb-netboot-4.14.y
+dhcp net0
+kernel http://192.168.4.206:8000/kernels/vmlinuz-4.14.y root=/dev/nfs rw ip=dhcp nfsroot=192.168.4.206:/srv/nfs/debian,vers=3,udp nfsrootdebug
+boot
+goto MENU
+
+:shell
+shell ||
+goto MENU

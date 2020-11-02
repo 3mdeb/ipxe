@@ -967,6 +967,8 @@ static int nii_transmit ( struct net_device *netdev,
 	int stat;
 	int rc;
 
+	DBGC ( nii, "NII %s transmiting %lx bytes\n", nii->dev.name, iob_len ( iobuf ) );
+
 	/* Defer the packet if there is already a transmission in progress */
 	if ( nii->txbuf ) {
 		netdev_tx_defer ( netdev, iobuf );
@@ -1235,6 +1237,7 @@ int nii_start ( struct efi_device *efidev ) {
 	EFI_STATUS efirc;
 	int rc;
 
+	return -1;
 	/* Allocate and initialise structure */
 	netdev = alloc_netdev ( sizeof ( *nii ) );
 	if ( ! netdev ) {
